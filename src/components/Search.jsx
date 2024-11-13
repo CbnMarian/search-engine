@@ -1,19 +1,14 @@
 // svg
 import logo from "../assets/svg/logo.svg";
-import { useEffect, useState, useContext, useCallback, useRef } from "react";
+import removeIcon from "../assets/svg/remove.svg";
+
+import { useEffect, useState, useContext } from "react";
 import TagsContext from "../context/TagsContext";
 import { useNavigate, useLocation } from "react-router-dom";
-//NEW IMPORTS\\
-import { ReactComponent as LupeIcon } from "../assets/svg/lupe.svg";
-import { ReactComponent as XIcon } from "../assets/svg/x.svg";
-import { ReactComponent as MapPinIcon } from "../assets/svg/map_pin.svg";
-import { orase } from "../utils/getCityName";
-//\\//\\//\\//\\
-
 // components
 import FiltreGrup from "./FiltreGrup";
 // redux
-import { useDispatch } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 // functions to update the jobSlice state.
 import {
   setJobs,
@@ -27,10 +22,42 @@ import { createSearchString } from "../utils/createSearchString";
 // functions to fetch the data
 import { getData, getNumberOfCompany } from "../utils/fetchData";
 import { findParamInURL, updateUrlParams } from "../utils/urlManipulation";
+import Button from "./Button";
 
-const Fetch = () => {
-  const { q, city, remote, county, company, removeTag, contextSetQ } =
-    useContext(TagsContext);
+const FilterTags = ({ tags, removeTag }) => {
+  return (
+    <div className="flex gap-2 flex-wrap">
+      {Object.entries(tags).map(([key, currentArray]) =>
+        currentArray.map((item) => (
+          <Button
+            key={item}
+            buttonType="addFilters"
+            onClick={() => removeTag(key, item)}
+          >
+            {item}
+            <img src={removeIcon} alt="x" className="cursor-pointer ml-2" />
+          </Button>
+        ))
+      )}
+    </div>
+  );
+};
+
+const Search = (props) => {
+  const { inputWidth } = props;
+
+  const {
+    q,
+    city,
+    remote,
+    county,
+    company,
+    removeTag,
+    contextSetQ,
+    deletAll,
+    handleRemoveAllFilters,
+    fields
+  } = useContext(TagsContext);
   // fields
   const [text, setText] = useState("");
   // dispatch
@@ -38,36 +65,13 @@ const Fetch = () => {
   const location = useLocation(); // Get the current location
   const dispatch = useDispatch();
 
-  //new\\
-  const [setJobTitle] = useState("");
-  const [locationn, setLocation] = useState("");
-  /* const [locationTest, setLocationSuggestions] = useState([]); */
-  const [focusedInput, setFocusedInput] = useState(null);
-  const handleClearLocation = () => setLocation("");
-  const handleFocus = (input) => setFocusedInput(input);
-  const handleBlur = () => setFocusedInput(null); // Optional, depending on whether you want to hide the dropdown when blurred
-  const [filteredCities, setFilteredCities] = useState(orase); // State for filtered cities
-  const dropdownRef = useRef(null);
+  // jobs
+  const total = useSelector((state) => state.jobs.total);
+  const loading = useSelector((state) => state.jobs.loading);
+  const nrJoburi =
+    total >= 20 ? "de rezultate" : total === 1 ? "rezultat" : "rezultate";
 
-  const jobSuggestions = [
-    "Relatii clineti",
-    "Mecanic Auto",
-    "Web Developer (somer)",
-    "Back-end Developer PHP",
-    "Relatii clineti",
-    "Mecanic Auto",
-    "Web Developer (somer)",
-    "Back-end Developer PHP",
-    "Relatii clineti",
-    "Mecanic Auto",
-    "Web Developer (somer)",
-    "Back-end Developer PHP",
-    "Relatii clineti",
-    "Mecanic Auto",
-    "Web Developer (somer)",
-    "Back-end Developer PHP"
-  ];
-  // useEffect to set the search input field as the user search query
+  // useEffect to set the search input field as the user search querry
   useEffect(() => {
     if (location.pathname === "/rezultate") {
       setText(q + "");
@@ -156,172 +160,125 @@ const Fetch = () => {
     updateUrlParams({ q: null });
   }
 
-  //function to remove diacritics
-  const removeDiacritics = (text) => {
-    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  // Aligning the h2 with the first card
+  const [h2Width, setH2Width] = useState("auto");
+  const calculateH2Width = () => {
+    const screenWidth = window.innerWidth;
+    const gap = 28;
+    let cardWidth;
+    const breakpoint = 1024;
+
+    cardWidth = screenWidth > breakpoint ? 384 : 300;
+
+    screenWidth >= 740 && screenWidth <= 767
+      ? setH2Width(300)
+      : setH2Width(
+          (Math.floor((screenWidth - gap * 4 - cardWidth) / (cardWidth + gap)) +
+            1) *
+            cardWidth +
+            (Math.floor(
+              (screenWidth - gap * 4 - cardWidth) / (cardWidth + gap)
+            ) +
+              1 -
+              1) *
+              gap
+        );
   };
 
-  // Function to filter cities based on input
-  const filterCities = useCallback((input) => {
-    // Use useCallback
-    const normalizedInput = removeDiacritics(input.toLowerCase()); // Normalize input
-    const filtered = orase.filter(
-      (city) => removeDiacritics(city.toLowerCase()).includes(normalizedInput) // Normalize city names
-    );
-    setFilteredCities(filtered);
-  }, []); // You might want to add dependencies here if `orase` changes
-
-  // Update filtered cities when location input changes
   useEffect(() => {
-    filterCities(locationn);
-  }, [locationn, filterCities]); // Include filterCities in the dependency array
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setFocusedInput(null); // Close the dropdown
-      }
-    };
-
-    if (focusedInput) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
+    calculateH2Width();
+    window.addEventListener("resize", calculateH2Width);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("resize", calculateH2Width);
     };
-  }, [focusedInput]);
+  }, []);
 
   return (
-    <>
-      <div className="m-10 p-10">
-        <div className="flex items-center relative flex-col gap-2 lg:gap-0 lg:flex-row lg:h-[50px] ">
-          {location.pathname === "/rezultate" && (
-            <a href="/" className="logo mr-2">
-              <img src={logo} alt="peviitor" />
-            </a>
-          )}
-          <form
-            onSubmit={handleUpdateQ}
-            className="flex flex-col items-center justify-between md:flex-row relative "
-          >
-            <div className="flex items-center justify-between relative lg:w-[522px]">
-              {/* Job Title Input */}
-              <div
-                className={`flex items-center relative w-full border border-[#89969C] rounded-lg ${
-                  location.pathname !== "/"
-                    ? "lg:border-r-2 border-[#89969C] rounded-lg"
-                    : "lg:border-r-0 lg:rounded-tr-none lg:rounded-br-none divider " // Adaugă border pe dreapta dacă nu e pe "/"
-                } ${
-                  focusedInput === "jobTitle"
-                    ? "lg:border-b-[#eeeeee] lg:rounded-bl-none"
-                    : ""
-                }`}
-              >
-                <LupeIcon className="w-5 h-5 text-gray-500 ml-3" />
-                <input
-                  type="text"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  /* Dropdown on the main page === " / "   */
-                  onFocus={
-                    location.pathname === "/"
-                      ? () => handleFocus("jobTitle")
-                      : undefined
-                  }
-                  onBlur={location.pathname === "/" ? handleBlur : undefined}
-                  placeholder="Cauta un loc de munca"
-                  className="w-full py-2 px-2 pl-10 bg-transparent outline-none border-none focus:outline-none focus:ring-0"
-                />
-                {text && (
-                  <XIcon
-                    className="w-4 h-4 text-gray-700 mr-3 cursor-pointer"
-                    onClick={handleClearX}
-                  />
-                )}
-              </div>
-
-              {/* Dropdown for Job Title */}
-              {focusedInput === "jobTitle" && (
-                <ul className="hidden lg:block lg:absolute lg:left-0 lg:w-full lg:border lg:border-t-0 border-[#89969C] lg:rounded-lg lg:rounded-t-none lg:pt-2 lg:mt-4 lg:max-h-48 lg:overflow-y-scroll custom-scrollbar lg:bottom-0 lg:transform lg:translate-y-full lg:box-border">
-                  {jobSuggestions.map((suggestion, index) => (
-                    <li
-                      key={index}
-                      className="px-12 py-2 cursor-pointer hover:bg-gray-100"
-                      onClick={() => setJobTitle(suggestion)}
-                    >
-                      {suggestion}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Add Location Input */}
-            <div ref={dropdownRef}>
-              {" "}
-              {/* Add ref to the container */}
-              {location.pathname === "/" && (
-                <div className="flex items-center justify-between relative lg:w-[325px]">
-                  <div
-                    className={`flex items-center relative w-full border border-[#89969C] rounded-lg lg:border-l-0 lg:rounded-tl-none lg:rounded-bl-none lg:rounded-tr-lg ${
-                      focusedInput === "location"
-                        ? "lg:border-b-[#eeeeee] lg:rounded-br-none"
-                        : ""
-                    }`}
-                  >
-                    <MapPinIcon className="w-7 h-7 text-gray-500 ml-3" />
-                    <input
-                      type="text"
-                      value={locationn}
-                      onChange={(e) => setLocation(e.target.value)}
-                      onFocus={() => handleFocus("location")}
-                      placeholder="Adauga o locatie"
-                      className="w-full py-2 px-4 pl-2 bg-transparent outline-none border-none focus:outline-none focus:ring-0"
-                    />
-                    {locationn && (
-                      <XIcon
-                        className="w-4 h-4 text-gray-500 mr-3 cursor-pointer"
-                        onClick={handleClearLocation}
-                      />
-                    )}
-                  </div>
-
-                  {/* Add Location Input dropdown*/}
-                  {focusedInput === "location" && (
-                    <ul className="hidden lg:block lg:absolute lg:left-0 lg:w-full lg:border lg:border-t-0 lg:border-[#89969C] lg:rounded-lg lg:rounded-t-none lg:pt-2 lg:mt-4 lg:max-h-48 lg:overflow-y-scroll custom-scrollbar lg:bottom-0 lg:transform lg:translate-y-full lg:box-border">
-                      {filteredCities.map((suggestion, index) => (
-                        <li
-                          key={index}
-                          className="px-12 py-2 cursor-pointer hover:bg-gray-100"
-                          onClick={() => {
-                            setLocation(suggestion);
-                            setFocusedInput(null); // Close dropdown on selection
-                          }}
-                        >
-                          {suggestion}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
-            {/* button search */}
-            <button
-              type="submit"
-              className="m-2 bg-background_green text-white w-[122px] h-[42px] text-base px-10 rounded-md transition duration-300 ease-out hover:shadow-button_shadow focus:outline-none"
-            >
-              Caută
-            </button>
-          </form>
-        </div>
-        {location.pathname === "/rezultate" && ( // Conditionally render the checkboxes
-          <>
-            <FiltreGrup />
-          </>
+    <div>
+      <div
+        className="flex flex-col md:flex-row items-center justify-center pt-5 gap-2 mx-auto"
+        style={{ width: h2Width }}
+      >
+        {location.pathname === "/rezultate" && (
+          <a href="/" className="logo">
+            <img src={logo} alt="peviitor" style={{ maxWidth: "none" }} />
+          </a>
         )}
+        <form
+          onSubmit={handleUpdateQ}
+          className="flex flex-col items-center md:flex-row relative gap-2"
+        >
+          <img
+            src={magnifyGlass}
+            alt="magnify-glass"
+            className="absolute top-4 left-4"
+          />
+          <input
+            type="text"
+            value={text}
+            style={{ width: inputWidth }}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Caută un loc de muncă"
+            className="pl-12 w-[290px] h-[54px] mb-3 md:mb-0 border rounded-full border-border_grey outline-none "
+          />
+          {text.length !== 0 ? (
+            <span
+              className="absolute right-5 md:right-[148px] top-5 cursor-pointer"
+              onClick={handleClearX}
+            >
+              <svg
+                focusable="false"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="15px"
+                height="15px"
+              >
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+              </svg>
+            </span>
+          ) : (
+            ""
+          )}
+          <Button type="submit" buttonType="search">
+            Caută
+          </Button>
+        </form>
       </div>
-    </>
+
+      {/* // Conditionally render the checkboxes */}
+      {location.pathname === "/rezultate" && <FiltreGrup />}
+      {loading ? (
+        <div className="h-[20px] w-[50%] md:w-[16%] mx-auto my-8 md:mx-0 bg-gray-300 animate-pulse rounded-md"></div>
+      ) : (
+        total > 0 && (
+          <h2
+            className="text-start text-text_grey_darker my-8 text-lg"
+            style={{ width: h2Width, margin: "32px auto" }}
+          >
+            {total} {nrJoburi}
+          </h2>
+        )
+      )}
+
+      {!deletAll && (
+        <div
+          className="pb-9 flex gap-2 flex-wrap"
+          style={{ width: h2Width, margin: "0 auto" }}
+        >
+          <FilterTags tags={fields} removeTag={removeTag} />
+          {!deletAll && (
+            <div className="flex gap-2 ml-4">
+              <Button
+                buttonType="deleteFilters"
+                onClick={handleRemoveAllFilters}
+              >
+                Șterge filtre
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
-export default Fetch;
+export default Search;
